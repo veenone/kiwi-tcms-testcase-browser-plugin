@@ -3,6 +3,7 @@ from django.urls import re_path
 from tcms_test_browser import views
 
 urlpatterns = [
+    # Test Case Browser
     re_path(r"^$", views.TestCaseBrowserView.as_view(), name="testcase-browser"),
     re_path(
         r"^api/category/(?P<category_id>\d+)/testcases/$",
@@ -43,5 +44,150 @@ urlpatterns = [
         r"^api/report/pdf/$",
         views.api_report_pdf,
         name="testcase-browser-api-report-pdf",
+    ),
+    # Test Plan Browser
+    re_path(
+        r"^plans/$",
+        views.TestPlanBrowserView.as_view(),
+        name="testplan-browser",
+    ),
+    re_path(
+        r"^plans/api/plan/(?P<plan_id>\d+)/$",
+        views.api_plan_detail,
+        name="testplan-browser-api-detail",
+    ),
+    re_path(
+        r"^plans/api/search/$",
+        views.api_search_plans,
+        name="testplan-browser-api-search",
+    ),
+    re_path(
+        r"^plans/api/statistics/$",
+        views.api_plan_statistics,
+        name="testplan-browser-api-stats",
+    ),
+    re_path(
+        r"^plans/api/report/$",
+        views.api_plan_report,
+        name="testplan-browser-api-report",
+    ),
+    re_path(
+        r"^plans/api/report/excel/$",
+        views.api_plan_report_excel,
+        name="testplan-browser-api-report-excel",
+    ),
+    re_path(
+        r"^plans/api/report/docx/$",
+        views.api_plan_report_docx,
+        name="testplan-browser-api-report-docx",
+    ),
+    re_path(
+        r"^plans/api/report/pdf/$",
+        views.api_plan_report_pdf,
+        name="testplan-browser-api-report-pdf",
+    ),
+    # Test Run Browser
+    re_path(
+        r"^runs/$",
+        views.TestRunBrowserView.as_view(),
+        name="testrun-browser",
+    ),
+    re_path(
+        r"^runs/api/run/(?P<run_id>\d+)/$",
+        views.api_run_detail,
+        name="testrun-browser-api-detail",
+    ),
+    re_path(
+        r"^runs/api/search/$",
+        views.api_search_runs,
+        name="testrun-browser-api-search",
+    ),
+    re_path(
+        r"^runs/api/statistics/$",
+        views.api_run_statistics,
+        name="testrun-browser-api-stats",
+    ),
+    re_path(
+        r"^runs/api/report/$",
+        views.api_run_report,
+        name="testrun-browser-api-report",
+    ),
+    re_path(
+        r"^runs/api/report/excel/$",
+        views.api_run_report_excel,
+        name="testrun-browser-api-report-excel",
+    ),
+    re_path(
+        r"^runs/api/report/docx/$",
+        views.api_run_report_docx,
+        name="testrun-browser-api-report-docx",
+    ),
+    re_path(
+        r"^runs/api/report/pdf/$",
+        views.api_run_report_pdf,
+        name="testrun-browser-api-report-pdf",
+    ),
+    # Consolidated Browser
+    re_path(
+        r"^consolidated/$",
+        views.ConsolidatedBrowserView.as_view(),
+        name="consolidated-browser",
+    ),
+    re_path(
+        r"^consolidated/api/dashboard/$",
+        views.api_consolidated_dashboard,
+        name="consolidated-browser-api-dashboard",
+    ),
+    re_path(
+        r"^consolidated/api/plan/(?P<plan_id>\d+)/detail/$",
+        views.api_consolidated_plan_detail,
+        name="consolidated-browser-api-plan-detail",
+    ),
+    re_path(
+        r"^consolidated/api/case/(?P<case_id>\d+)/detail/$",
+        views.api_consolidated_case_detail,
+        name="consolidated-browser-api-case-detail",
+    ),
+    # Consolidated Plan Drill-Down Exports
+    re_path(
+        r"^consolidated/api/plan/(?P<plan_id>\d+)/report/$",
+        views.api_consolidated_plan_report,
+        name="consolidated-browser-api-plan-report",
+    ),
+    re_path(
+        r"^consolidated/api/plan/(?P<plan_id>\d+)/report/excel/$",
+        views.api_consolidated_plan_report_excel,
+        name="consolidated-browser-api-plan-report-excel",
+    ),
+    re_path(
+        r"^consolidated/api/plan/(?P<plan_id>\d+)/report/docx/$",
+        views.api_consolidated_plan_report_docx,
+        name="consolidated-browser-api-plan-report-docx",
+    ),
+    re_path(
+        r"^consolidated/api/plan/(?P<plan_id>\d+)/report/pdf/$",
+        views.api_consolidated_plan_report_pdf,
+        name="consolidated-browser-api-plan-report-pdf",
+    ),
+    # Consolidated Case Drill-Down Exports
+    re_path(
+        r"^consolidated/api/case/(?P<case_id>\d+)/report/$",
+        views.api_consolidated_case_report,
+        name="consolidated-browser-api-case-report",
+    ),
+    re_path(
+        r"^consolidated/api/case/(?P<case_id>\d+)/report/excel/$",
+        views.api_consolidated_case_report_excel,
+        name="consolidated-browser-api-case-report-excel",
+    ),
+    re_path(
+        r"^consolidated/api/case/(?P<case_id>\d+)/report/docx/$",
+        views.api_consolidated_case_report_docx,
+        name="consolidated-browser-api-case-report-docx",
+    ),
+    re_path(
+        r"^consolidated/api/case/(?P<case_id>\d+)/report/pdf/$",
+        views.api_consolidated_case_report_pdf,
+        name="consolidated-browser-api-case-report-pdf",
     ),
 ]

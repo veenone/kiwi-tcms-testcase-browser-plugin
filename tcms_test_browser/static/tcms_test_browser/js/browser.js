@@ -8,6 +8,7 @@
 
     var currentTestCaseId = null;
     var loadedCategories = {};
+    var checkedIds = {};
 
     // Initialize on document ready
     $(document).ready(function() {
@@ -15,6 +16,7 @@
         initSearch();
         initFilterProduct();
         initStatsPanel();
+        initSelectionControls();
         loadStatistics();
     });
 
@@ -136,8 +138,10 @@
                 } else {
                     data.testcases.forEach(function(tc) {
                         var statusClass = getStatusClass(tc.case_status);
+                        var isChecked = checkedIds[tc.id] ? ' checked' : '';
                         var $tcItem = $(
                             '<div class="list-group-item tree-item testcase-item" data-type="testcase" data-id="' + tc.id + '">' +
+                                '<input type="checkbox" class="tree-checkbox" data-id="' + tc.id + '" title="Select for export"' + isChecked + '> ' +
                                 '<span class="pficon pficon-catalog"></span> ' +
                                 '<span class="tree-label">' + escapeHtml(tc.summary) + '</span>' +
                                 '<span class="label ' + statusClass + '" style="margin-left: 5px;">' + escapeHtml(tc.case_status || '') + '</span>' +
@@ -213,7 +217,11 @@
         }
 
         if (data.notes) {
-            $('#tc-notes').text(data.notes);
+            var notesHtml = escapeHtml(data.notes)
+                .replace(/\n/g, '<br>')
+                .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\*(.+?)\*/g, '<em>$1</em>');
+            $('#tc-notes').html(notesHtml);
             $('#tc-notes-section').show();
         } else {
             $('#tc-notes-section').hide();
@@ -253,14 +261,19 @@
             $('#tc-tags').html('<em class="text-muted">No tags</em>');
         }
 
+        var $plansBody = $('#tc-plans tbody');
+        $plansBody.empty();
         if (data.plans.length > 0) {
-            $('#tc-plans').html(data.plans.map(function(p) {
-                return '<a href="/plan/' + p.id + '/" class="btn btn-xs btn-default" style="margin-right: 5px;">' +
-                    '<span class="pficon pficon-catalog"></span> ' + escapeHtml(p.name) +
-                '</a>';
-            }).join(''));
+            data.plans.forEach(function(p) {
+                $plansBody.append(
+                    '<tr>' +
+                        '<td><a href="/plan/' + p.id + '/" target="_blank">TP-' + p.id + '</a></td>' +
+                        '<td>' + escapeHtml(p.name) + '</td>' +
+                    '</tr>'
+                );
+            });
         } else {
-            $('#tc-plans').html('<em class="text-muted">Not in any test plan</em>');
+            $plansBody.html('<tr><td colspan="2" class="text-muted text-center">Not in any test plan</td></tr>');
         }
     }
 
@@ -413,6 +426,48 @@
         return div.innerHTML;
     }
 
+    /**
+     * Initialize selection controls (checkboxes + select all)
+     */
+    function initSelectionControls() {
+        // Checkbox click — stop propagation so detail doesn't load
+        $('#tree-view').on('click', '.tree-checkbox', function(e) {
+            e.stopPropagation();
+            var id = $(this).data('id');
+            if ($(this).is(':checked')) {
+                checkedIds[id] = true;
+            } else {
+                delete checkedIds[id];
+            }
+            updateSelectionCount();
+        });
+
+        // Select All toggle
+        $('#select-all-tree').on('change', function() {
+            var isChecked = $(this).is(':checked');
+            $('#tree-view .tree-checkbox:visible').each(function() {
+                $(this).prop('checked', isChecked);
+                var id = $(this).data('id');
+                if (isChecked) {
+                    checkedIds[id] = true;
+                } else {
+                    delete checkedIds[id];
+                }
+            });
+            updateSelectionCount();
+        });
+    }
+
+    function updateSelectionCount() {
+        var count = Object.keys(checkedIds).length;
+        var $badge = $('#selection-count');
+        if (count > 0) {
+            $badge.text(count).show();
+        } else {
+            $badge.hide();
+        }
+    }
+
     // ==========================================
     // Statistics Dashboard
     // ==========================================
@@ -453,9 +508,14 @@
             var url = EXPORT_URLS[format];
             if (!url) return;
 
-            var productId = $('#filter-product').val();
-            if (productId) {
-                url += '?product=' + encodeURIComponent(productId);
+            var selectedIds = Object.keys(checkedIds);
+            if (selectedIds.length > 0) {
+                url += '?ids=' + selectedIds.join(',');
+            } else {
+                var productId = $('#filter-product').val();
+                if (productId) {
+                    url += '?product=' + encodeURIComponent(productId);
+                }
             }
             window.location.href = url;
         });
