@@ -1,8 +1,9 @@
 [project]
 name = "tcms-test-browser"
-version = "0.2.0"
+version = "1.1.0"
 description = "Test Case, Test Plan, and Test Run Browser plugin for Kiwi TCMS with tree navigation, statistics dashboards, and report exports"
 readme = "README.md"
+license = "MIT"
 requires-python = ">=3.11"
 dependencies = [
     "distlib==0.4.0",
@@ -13,3 +14,15 @@ dependencies = [
     "reportlab>=4.4.10",
     "virtualenv==20.36.1",
 ]
+authors = [{ name = "Achmad Fienan Rahardianto", email = "veenone@gmail.com"}]
+classifiers = [
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+]
+keywords = ["tcms", "kiwi", "plugin", "browser"]
+
+[project.entry-points."kiwitcms.plugins"]
+tcms_test_browser = "tcms_test_browser"
+
+[project.urls]
+Homepage = "https://github.com/veenone/kiwi-tcms-testcase-browser-plugin"

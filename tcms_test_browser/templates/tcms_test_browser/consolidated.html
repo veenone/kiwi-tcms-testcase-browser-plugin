@@ -6,7 +6,8 @@
 
 {% block contents %}
 <div class="container-fluid" id="test-browser-container">
-    <!-- Product Filter -->
+    {% include "tcms_test_browser/_nav.html" %}
+    <!-- Product Filter + Dashboard Export -->
     <div class="row" style="margin-bottom: 15px;">
         <div class="col-sm-4">
             <div class="input-group">
@@ -17,6 +18,19 @@
                     <option value="{{ product.id }}">{{ product.name }}</option>
                     {% endfor %}
                 </select>
+            </div>
+        </div>
+        <div class="col-sm-8 text-right">
+            <div class="btn-group" id="dash-export-group">
+                <button type="button" class="btn btn-default btn-xs dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                    <span class="fa fa-download"></span> {% trans "Export Dashboard" %} <span class="caret"></span>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-right">
+                    <li><a href="#" class="btn-dash-export" data-format="csv"><span class="fa fa-file-text-o"></span> {% trans "Export CSV" %}</a></li>
+                    <li><a href="#" class="btn-dash-export" data-format="excel"><span class="fa fa-file-excel-o"></span> {% trans "Export Excel" %}</a></li>
+                    <li><a href="#" class="btn-dash-export" data-format="docx"><span class="fa fa-file-word-o"></span> {% trans "Export Word" %}</a></li>
+                    <li><a href="#" class="btn-dash-export" data-format="pdf"><span class="fa fa-file-pdf-o"></span> {% trans "Export PDF" %}</a></li>
+                </ul>
             </div>
         </div>
     </div>
@@ -36,6 +50,11 @@
         <li role="presentation">
             <a href="#tab-case-drilldown" role="tab" data-toggle="tab">
                 <span class="pficon pficon-catalog"></span> {% trans "Case Drill-Down" %}
+            </a>
+        </li>
+        <li role="presentation">
+            <a href="#tab-sankey" role="tab" data-toggle="tab">
+                <span class="fa fa-random"></span> {% trans "Flow Diagram" %}
             </a>
         </li>
     </ul>
@@ -100,11 +119,13 @@
                             <div class="row">
                                 <div class="col-sm-6">
                                     <h5>{% trans "Cases Without Plans" %} <span class="badge" id="dash-cases-no-plans-count">0</span></h5>
-                                    <div id="dash-cases-no-plans" style="max-height: 200px; overflow-y: auto;"></div>
+                                    <div id="dash-cases-no-plans"></div>
+                                    <nav class="text-center" id="dash-cases-no-plans-pagination"></nav>
                                 </div>
                                 <div class="col-sm-6">
                                     <h5>{% trans "Plans Without Runs" %} <span class="badge" id="dash-plans-no-runs-count">0</span></h5>
-                                    <div id="dash-plans-no-runs" style="max-height: 200px; overflow-y: auto;"></div>
+                                    <div id="dash-plans-no-runs"></div>
+                                    <nav class="text-center" id="dash-plans-no-runs-pagination"></nav>
                                 </div>
                             </div>
                         </div>
@@ -129,6 +150,7 @@
                                 </thead>
                                 <tbody></tbody>
                             </table>
+                            <nav class="text-center" id="dash-recent-runs-pagination"></nav>
                         </div>
                     </div>
                 </div>
@@ -147,6 +169,7 @@
                                 </thead>
                                 <tbody></tbody>
                             </table>
+                            <nav class="text-center" id="dash-recent-cases-pagination"></nav>
                         </div>
                     </div>
                 </div>
@@ -159,10 +182,14 @@
                 <div class="col-sm-6">
                     <div class="input-group">
                         <input type="text" class="form-control" id="plan-search-input"
-                               placeholder="{% trans 'Search for a test plan...' %}">
+                               placeholder="{% trans 'Search by name, ID, or description...' %}">
                         <span class="input-group-btn">
                             <button class="btn btn-default" type="button" id="btn-plan-search">
                                 <span class="fa fa-search"></span>
+                            </button>
+                            <button class="btn btn-default" type="button" id="btn-plan-browse"
+                                    data-toggle="modal" data-target="#plan-browse-modal">
+                                <span class="fa fa-list"></span> {% trans "Browse" %}
                             </button>
                         </span>
                     </div>
@@ -250,10 +277,14 @@
                 <div class="col-sm-6">
                     <div class="input-group">
                         <input type="text" class="form-control" id="case-search-input"
-                               placeholder="{% trans 'Search for a test case...' %}">
+                               placeholder="{% trans 'Search by name, ID, or description...' %}">
                         <span class="input-group-btn">
                             <button class="btn btn-default" type="button" id="btn-case-search">
                                 <span class="fa fa-search"></span>
+                            </button>
+                            <button class="btn btn-default" type="button" id="btn-case-browse"
+                                    data-toggle="modal" data-target="#case-browse-modal">
+                                <span class="fa fa-list"></span> {% trans "Browse" %}
                             </button>
                         </span>
                     </div>
@@ -335,6 +366,104 @@
                         </table>
                     </div>
                 </div>
+            </div>
+        </div>
+
+        <!-- Flow Diagram Tab -->
+        <div role="tabpanel" class="tab-pane" id="tab-sankey">
+            <div class="panel panel-default">
+                <div class="panel-heading">
+                    <h3 class="panel-title">
+                        <span class="fa fa-random"></span>
+                        {% trans "Test Flow: Products → Plans → Runs" %}
+                    </h3>
+                </div>
+                <div class="panel-body">
+                    <div id="sankey-loading" class="text-center" style="padding: 30px;">
+                        <span class="spinner spinner-lg"></span> {% trans "Loading diagram..." %}
+                    </div>
+                    <div id="sankey-empty" class="text-center text-muted" style="padding: 50px; display: none;">
+                        <span class="pficon pficon-info" style="font-size: 48px;"></span>
+                        <h4>{% trans "No data available for the Sankey diagram" %}</h4>
+                    </div>
+                    <div id="sankey-chart" style="width: 100%; overflow-x: auto;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Plan Browse Modal -->
+<div class="modal fade" id="plan-browse-modal" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+                <h4 class="modal-title">{% trans "Browse Test Plans" %}</h4>
+            </div>
+            <div class="modal-body">
+                <table class="table table-striped table-condensed" id="plan-browse-table">
+                    <thead>
+                        <tr>
+                            <th>{% trans "ID" %}</th>
+                            <th>{% trans "Name" %}</th>
+                            <th>{% trans "Product" %}</th>
+                            <th>{% trans "Status" %}</th>
+                            <th>{% trans "Action" %}</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+                <nav class="text-center" id="plan-browse-pagination"></nav>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Case Browse Modal -->
+<div class="modal fade" id="case-browse-modal" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+                <h4 class="modal-title">{% trans "Browse Test Cases" %}</h4>
+            </div>
+            <div class="modal-body">
+                <table class="table table-striped table-condensed" id="case-browse-table">
+                    <thead>
+                        <tr>
+                            <th>{% trans "ID" %}</th>
+                            <th>{% trans "Summary" %}</th>
+                            <th>{% trans "Product" %}</th>
+                            <th>{% trans "Status" %}</th>
+                            <th>{% trans "Action" %}</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+                <nav class="text-center" id="case-browse-pagination"></nav>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="chart-filter-modal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+                <h4 class="modal-title" id="chart-filter-modal-title">Filtered Results</h4>
+            </div>
+            <div class="modal-body">
+                <div id="chart-filter-loading" class="text-center" style="display:none;">
+                    <span class="spinner spinner-lg"></span> Loading...
+                </div>
+                <table class="table table-striped table-hover" id="chart-filter-table" style="display:none;">
+                    <thead><tr id="chart-filter-thead"></tr></thead>
+                    <tbody id="chart-filter-tbody"></tbody>
+                </table>
+                <div class="text-muted text-center" id="chart-filter-empty" style="display:none;">No results found</div>
+                <nav class="text-center" id="chart-filter-pagination"></nav>
             </div>
         </div>
     </div>

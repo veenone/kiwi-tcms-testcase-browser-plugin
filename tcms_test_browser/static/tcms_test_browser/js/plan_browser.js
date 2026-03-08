@@ -395,8 +395,8 @@
                 }
 
                 renderDonutChart('#chart-type', data.by_type,
-                    ['#0088ce', '#3f9c35', '#ec7a08', '#cc0000', '#703fec']);
-                renderBarChart('#chart-product', data.by_product, 'Test Plans');
+                    ['#0088ce', '#3f9c35', '#ec7a08', '#cc0000', '#703fec'], 'type_name');
+                renderBarChart('#chart-product', data.by_product, 'Test Plans', 'product_name');
             },
             error: function() {
                 $('#stat-total-count').text('--');
@@ -431,7 +431,7 @@
         $('#inactive-count').text(inactive);
     }
 
-    function renderDonutChart(selector, data, colors) {
+    function renderDonutChart(selector, data, colors, filterType) {
         if (!data || data.length === 0) {
             $(selector).html('<div class="text-muted text-center small">No data</div>');
             return;
@@ -444,7 +444,13 @@
 
         c3.generate({
             bindto: selector,
-            data: { columns: columns, type: 'donut' },
+            data: {
+                columns: columns,
+                type: 'donut',
+                onclick: function(d) {
+                    if (filterType) openChartFilterModal(filterType, d.name);
+                }
+            },
             donut: {
                 width: 12,
                 label: { show: true, format: function(value) { return value; } }
@@ -452,11 +458,12 @@
             color: { pattern: colors || COLORS },
             tooltip: { show: true },
             legend: { show: true, position: 'right' },
-            size: { height: 180 }
+            size: { height: 220 },
+            padding: { top: 10, right: 10, bottom: 10, left: 10 }
         });
     }
 
-    function renderBarChart(selector, data, seriesName) {
+    function renderBarChart(selector, data, seriesName, filterType) {
         if (!data || data.length === 0) {
             $(selector).html('<div class="text-muted text-center small">No data</div>');
             return;
@@ -469,19 +476,155 @@
             counts.push(data[i].count);
         }
 
+        var chartHeight = Math.max(180, categories.length * 32 + 40);
+
         c3.generate({
             bindto: selector,
-            data: { columns: [counts], type: 'bar' },
+            data: {
+                columns: [counts],
+                type: 'bar',
+                onclick: function(d) {
+                    if (filterType) openChartFilterModal(filterType, categories[d.index]);
+                }
+            },
             axis: {
-                x: { categories: categories, type: 'category', tick: { multiline: false, rotate: 30 } },
+                rotated: true,
+                x: { categories: categories, type: 'category', tick: { multiline: false } },
                 y: { tick: { format: function(d) { return (d === Math.floor(d)) ? d : ''; } } }
             },
             color: { pattern: ['#0088ce'] },
             tooltip: { show: true },
             legend: { show: false },
             grid: { y: { show: false } },
-            size: { height: 180 }
+            size: { height: chartHeight }
         });
     }
 
-})(jQuery);
+    // ==========================================
+    // Chart Click-to-Filter Modal
+    // ==========================================
+
+    function openChartFilterModal(filterType, filterValue) {
+        var titleMap = {
+            'type_name': 'Test Plans \u2014 Type: ',
+            'product_name': 'Test Plans \u2014 Product: '
+        };
+        $('#chart-filter-modal-title').text((titleMap[filterType] || 'Filtered Results \u2014 ') + filterValue);
+        $('#chart-filter-loading').show();
+        $('#chart-filter-table').hide();
+        $('#chart-filter-empty').hide();
+        $('#chart-filter-pagination').empty();
+        $('#chart-filter-modal').modal('show');
+        loadChartFilterResults(filterType, filterValue, 1);
+    }
+
+    function loadChartFilterResults(filterType, filterValue, page) {
+        var params = { page: page, page_size: 25 };
+        params[filterType] = filterValue;
+
+        var productId = $('#filter-product').val();
+        if (productId) {
+            params.product = productId;
+        }
+
+        $.ajax({
+            url: '/tcms_test_browser/plans/api/browse/',
+            method: 'GET',
+            data: params,
+            dataType: 'json',
+            success: function(data) {
+                $('#chart-filter-loading').hide();
+                var $thead = $('#chart-filter-thead');
+                var $tbody = $('#chart-filter-tbody');
+                $thead.empty();
+                $tbody.empty();
+
+                if (data.plans.length === 0) {
+                    $('#chart-filter-empty').show();
+                    return;
+                }
+
+                $('#chart-filter-table').show();
+                $thead.html('<th>ID</th><th>Name</th><th>Product</th><th>Active</th>');
+
+                data.plans.forEach(function(p) {
+                    var activeLabel = p.is_active ?
+                        '<span class="label label-success">Active</span>' :
+                        '<span class="label label-danger">Inactive</span>';
+                    $tbody.append(
+                        '<tr>' +
+                            '<td><a href="/plan/' + p.id + '/" target="_blank">TP-' + p.id + '</a></td>' +
+                            '<td>' + escapeHtml(p.name) + '</td>' +
+                            '<td>' + escapeHtml(p.product || '') + '</td>' +
+                            '<td>' + activeLabel + '</td>' +
+                        '</tr>'
+                    );
+                });
+
+                renderBrowsePagination('#chart-filter-pagination', data.page, data.total_pages, function(pg) {
+                    loadChartFilterResults(filterType, filterValue, pg);
+                });
+            },
+            error: function() {
+                $('#chart-filter-loading').hide();
+                $('#chart-filter-empty').text('Error loading results').show();
+            }
+        });
+    }
+
+    function renderBrowsePagination(selector, currentPage, totalPages, loadFn) {
+        var $nav = $(selector);
+        $nav.empty();
+
+        if (totalPages <= 1) return;
+
+        var html = '<ul class="pagination pagination-sm" style="margin: 5px 0;">';
+
+        if (currentPage > 1) {
+            html += '<li><a href="#" data-page="' + (currentPage - 1) + '">&laquo;</a></li>';
+        } else {
+            html += '<li class="disabled"><span>&laquo;</span></li>';
+        }
+
+        var startPage = Math.max(1, currentPage - 3);
+        var endPage = Math.min(totalPages, currentPage + 3);
+
+        if (startPage > 1) {
+            html += '<li><a href="#" data-page="1">1</a></li>';
+            if (startPage > 2) {
+                html += '<li class="disabled"><span>...</span></li>';
+            }
+        }
+
+        for (var i = startPage; i <= endPage; i++) {
+            if (i === currentPage) {
+                html += '<li class="active"><span>' + i + '</span></li>';
+            } else {
+                html += '<li><a href="#" data-page="' + i + '">' + i + '</a></li>';
+            }
+        }
+
+        if (endPage < totalPages) {
+            if (endPage < totalPages - 1) {
+                html += '<li class="disabled"><span>...</span></li>';
+            }
+            html += '<li><a href="#" data-page="' + totalPages + '">' + totalPages + '</a></li>';
+        }
+
+        if (currentPage < totalPages) {
+            html += '<li><a href="#" data-page="' + (currentPage + 1) + '">&raquo;</a></li>';
+        } else {
+            html += '<li class="disabled"><span>&raquo;</span></li>';
+        }
+
+        html += '</ul>';
+        $nav.html(html);
+
+        $nav.find('a[data-page]').on('click', function(e) {
+            e.preventDefault();
+            var pg = parseInt($(this).data('page'), 10);
+            loadFn(pg);
+        });
+    }
+
+})($);

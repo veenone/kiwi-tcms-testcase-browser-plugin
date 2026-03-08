@@ -10,6 +10,15 @@
     height: calc(100vh - 80px);
 }
 
+#browser-nav {
+    flex-shrink: 0;
+    margin-bottom: 10px;
+}
+
+#browser-nav > li > a {
+    padding: 8px 15px;
+}
+
 /* ==========================================
    Statistics Dashboard
    ========================================== */
@@ -36,7 +45,7 @@
 }
 
 .stat-card {
-    min-height: 200px;
+    min-height: 240px;
     padding: 5px 10px;
 }
 
@@ -49,7 +58,7 @@
 }
 
 .stat-chart-container {
-    height: 180px;
+    min-height: 180px;
 }
 
 .stat-total {
@@ -361,4 +370,38 @@
     font-size: 11px;
     margin-left: 5px;
     vertical-align: middle;
+}
+
+/* ==========================================
+   C3 Chart Tooltip Fix
+   PatternFly sets a dark tooltip theme but c3.min.css
+   loads after it and resets backgrounds to white while
+   the white text color remains — producing invisible text.
+   ========================================== */
+
+/* Clickable chart segments */
+.c3-arc, .c3-bar {
+    cursor: pointer;
+}
+
+.c3-tooltip {
+    background: #393f44;
+    box-shadow: none;
+    opacity: 0.9;
+}
+
+.c3-tooltip th {
+    background: transparent;
+    font-size: 12px;
+    padding: 5px 10px 0;
+    border-bottom: 2px solid #030303;
+    color: #fff;
+}
+
+.c3-tooltip td {
+    background: transparent;
+    border: 0;
+    color: #fff;
+    font-size: 12px;
+    padding: 5px 10px;
 }

@@ -1,2 +1,4 @@
+include LICENSE
 recursive-include tcms_test_browser/templates *.html
 recursive-include tcms_test_browser/static *.js *.css
+recursive-include docs/screenshots *.png

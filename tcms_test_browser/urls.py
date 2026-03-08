@@ -3,8 +3,10 @@ from django.urls import re_path
 from tcms_test_browser import views
 
 urlpatterns = [
+    # Landing Page
+    re_path(r"^$", views.LandingPageView.as_view(), name="testbrowser-landing"),
     # Test Case Browser
-    re_path(r"^$", views.TestCaseBrowserView.as_view(), name="testcase-browser"),
+    re_path(r"^cases/$", views.TestCaseBrowserView.as_view(), name="testcase-browser"),
     re_path(
         r"^api/category/(?P<category_id>\d+)/testcases/$",
         views.api_testcases_by_category,
@@ -19,6 +21,16 @@ urlpatterns = [
         r"^api/search/$",
         views.api_search_testcases,
         name="testcase-browser-api-search",
+    ),
+    re_path(
+        r"^api/browse/$",
+        views.api_browse_testcases,
+        name="testcase-browser-api-browse",
+    ),
+    re_path(
+        r"^api/executions/browse/$",
+        views.api_browse_executions,
+        name="testcase-browser-api-executions-browse",
     ),
     re_path(
         r"^api/statistics/$",
@@ -62,6 +74,11 @@ urlpatterns = [
         name="testplan-browser-api-search",
     ),
     re_path(
+        r"^plans/api/browse/$",
+        views.api_browse_plans,
+        name="testplan-browser-api-browse",
+    ),
+    re_path(
         r"^plans/api/statistics/$",
         views.api_plan_statistics,
         name="testplan-browser-api-stats",
@@ -91,6 +108,11 @@ urlpatterns = [
         r"^runs/$",
         views.TestRunBrowserView.as_view(),
         name="testrun-browser",
+    ),
+    re_path(
+        r"^runs/api/browse/$",
+        views.api_browse_runs,
+        name="testrun-browser-api-browse",
     ),
     re_path(
         r"^runs/api/run/(?P<run_id>\d+)/$",
@@ -137,6 +159,31 @@ urlpatterns = [
         r"^consolidated/api/dashboard/$",
         views.api_consolidated_dashboard,
         name="consolidated-browser-api-dashboard",
+    ),
+    re_path(
+        r"^consolidated/api/sankey/$",
+        views.api_consolidated_sankey,
+        name="consolidated-browser-api-sankey",
+    ),
+    re_path(
+        r"^consolidated/api/dashboard/report/$",
+        views.api_consolidated_dashboard_report,
+        name="consolidated-browser-api-dashboard-report",
+    ),
+    re_path(
+        r"^consolidated/api/dashboard/report/excel/$",
+        views.api_consolidated_dashboard_report_excel,
+        name="consolidated-browser-api-dashboard-report-excel",
+    ),
+    re_path(
+        r"^consolidated/api/dashboard/report/docx/$",
+        views.api_consolidated_dashboard_report_docx,
+        name="consolidated-browser-api-dashboard-report-docx",
+    ),
+    re_path(
+        r"^consolidated/api/dashboard/report/pdf/$",
+        views.api_consolidated_dashboard_report_pdf,
+        name="consolidated-browser-api-dashboard-report-pdf",
     ),
     re_path(
         r"^consolidated/api/plan/(?P<plan_id>\d+)/detail/$",

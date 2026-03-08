@@ -10,6 +10,17 @@
 
     var currentPlanDDId = null;
     var currentCaseDDId = null;
+    var dashRunsPage = 1;
+    var dashCasesPage = 1;
+    var dashCasesNoPlanPage = 1;
+    var dashPlansNoRunPage = 1;
+
+    var DASH_EXPORT_URLS = {
+        csv: '/tcms_test_browser/consolidated/api/dashboard/report/',
+        excel: '/tcms_test_browser/consolidated/api/dashboard/report/excel/',
+        docx: '/tcms_test_browser/consolidated/api/dashboard/report/docx/',
+        pdf: '/tcms_test_browser/consolidated/api/dashboard/report/pdf/'
+    };
 
     var PLAN_DD_EXPORT_URLS = {
         csv: '/tcms_test_browser/consolidated/api/plan/{id}/report/',
@@ -26,14 +37,20 @@
     };
 
     $(document).ready(function() {
-        loadDashboard();
+        loadDashboard(1, 1, 1, 1);
 
         $('#filter-product').on('change', function() {
-            loadDashboard();
+            dashRunsPage = 1;
+            dashCasesPage = 1;
+            dashCasesNoPlanPage = 1;
+            dashPlansNoRunPage = 1;
+            loadDashboard(1, 1, 1, 1);
         });
 
         initPlanSearch();
+        initPlanBrowse();
         initCaseSearch();
+        initCaseBrowse();
         initDrillDownExports();
     });
 
@@ -41,9 +58,19 @@
     // Dashboard Tab
     // ==========================================
 
-    function loadDashboard() {
+    function loadDashboard(runsPage, casesPage, casesNoPlanPage, plansNoRunPage) {
+        dashRunsPage = runsPage || dashRunsPage;
+        dashCasesPage = casesPage || dashCasesPage;
+        dashCasesNoPlanPage = casesNoPlanPage || dashCasesNoPlanPage;
+        dashPlansNoRunPage = plansNoRunPage || dashPlansNoRunPage;
+
         var productId = $('#filter-product').val();
-        var params = {};
+        var params = {
+            runs_page: dashRunsPage,
+            cases_page: dashCasesPage,
+            cases_no_plan_page: dashCasesNoPlanPage,
+            plans_no_run_page: dashPlansNoRunPage
+        };
         if (productId) {
             params.product = productId;
         }
@@ -81,15 +108,22 @@
             }
             c3.generate({
                 bindto: '#dash-chart-exec-status',
-                data: { columns: columns, type: 'donut' },
+                data: {
+                    columns: columns,
+                    type: 'donut',
+                    onclick: function(d) {
+                        openChartFilterModal('exec_status', d.name);
+                    }
+                },
                 donut: {
-                    width: 20,
+                    width: 30,
                     title: data.execution_rates.total + ' executions',
                     label: { show: true, format: function(v) { return v; } }
                 },
                 color: { pattern: COLORS },
                 legend: { show: true, position: 'right' },
-                size: { height: 250 }
+                size: { height: 250 },
+                padding: { top: 10, right: 10, bottom: 10, left: 10 }
             });
         } else {
             $('#dash-chart-exec-status').html('<div class="text-muted text-center">No execution data</div>');
@@ -97,7 +131,8 @@
 
         // Coverage gaps
         var casesNoPlan = data.cases_without_plans;
-        $('#dash-cases-no-plans-count').text(casesNoPlan.length);
+        var casesNoPlanPagination = data.cases_without_plans_pagination;
+        $('#dash-cases-no-plans-count').text(casesNoPlanPagination.total);
         if (casesNoPlan.length > 0) {
             var html = casesNoPlan.map(function(c) {
                 return '<a href="/case/' + c.id + '/" class="list-group-item" target="_blank" style="padding: 5px 10px; font-size: 12px;">' +
@@ -108,8 +143,18 @@
             $('#dash-cases-no-plans').html('<div class="text-muted small">All cases are in plans</div>');
         }
 
+        // Cases without plans pagination
+        if (casesNoPlanPagination) {
+            renderBrowsePagination('#dash-cases-no-plans-pagination',
+                casesNoPlanPagination.page,
+                casesNoPlanPagination.total_pages,
+                function(page) { loadDashboard(dashRunsPage, dashCasesPage, page, dashPlansNoRunPage); }
+            );
+        }
+
         var plansNoRun = data.plans_without_runs;
-        $('#dash-plans-no-runs-count').text(plansNoRun.length);
+        var plansNoRunPagination = data.plans_without_runs_pagination;
+        $('#dash-plans-no-runs-count').text(plansNoRunPagination.total);
         if (plansNoRun.length > 0) {
             var html2 = plansNoRun.map(function(p) {
                 return '<a href="/plan/' + p.id + '/" class="list-group-item" target="_blank" style="padding: 5px 10px; font-size: 12px;">' +
@@ -118,6 +163,15 @@
             $('#dash-plans-no-runs').html(html2);
         } else {
             $('#dash-plans-no-runs').html('<div class="text-muted small">All plans have runs</div>');
+        }
+
+        // Plans without runs pagination
+        if (plansNoRunPagination) {
+            renderBrowsePagination('#dash-plans-no-runs-pagination',
+                plansNoRunPagination.page,
+                plansNoRunPagination.total_pages,
+                function(page) { loadDashboard(dashRunsPage, dashCasesPage, dashCasesNoPlanPage, page); }
+            );
         }
 
         // Recent runs
@@ -141,6 +195,15 @@
             $runsBody.html('<tr><td colspan="4" class="text-muted text-center">No runs</td></tr>');
         }
 
+        // Recent runs pagination
+        if (data.recent_runs_pagination) {
+            renderBrowsePagination('#dash-recent-runs-pagination',
+                data.recent_runs_pagination.page,
+                data.recent_runs_pagination.total_pages,
+                function(page) { loadDashboard(page, dashCasesPage, dashCasesNoPlanPage, dashPlansNoRunPage); }
+            );
+        }
+
         // Recent cases
         var $casesBody = $('#dash-recent-cases tbody');
         $casesBody.empty();
@@ -158,6 +221,15 @@
         } else {
             $casesBody.html('<tr><td colspan="4" class="text-muted text-center">No cases</td></tr>');
         }
+
+        // Recent cases pagination
+        if (data.recent_cases_pagination) {
+            renderBrowsePagination('#dash-recent-cases-pagination',
+                data.recent_cases_pagination.page,
+                data.recent_cases_pagination.total_pages,
+                function(page) { loadDashboard(dashRunsPage, page, dashCasesNoPlanPage, dashPlansNoRunPage); }
+            );
+        }
     }
 
     // ==========================================
@@ -167,23 +239,25 @@
     function initPlanSearch() {
         var searchTimeout;
 
+        // Load all plans by default when Plan Drill-Down tab is first shown
+        $('a[href="#tab-plan-drilldown"]').on('shown.bs.tab', function() {
+            if (!$('#plan-search-results').data('loaded')) {
+                searchPlans('');
+                $('#plan-search-results').data('loaded', true);
+            }
+        });
+
         $('#plan-search-input').on('input', function() {
             clearTimeout(searchTimeout);
             var query = $(this).val().trim();
-            if (query.length >= 2) {
-                searchTimeout = setTimeout(function() {
-                    searchPlans(query);
-                }, 300);
-            } else {
-                $('#plan-search-results').hide();
-            }
+            searchTimeout = setTimeout(function() {
+                searchPlans(query);
+            }, 300);
         });
 
         $('#btn-plan-search').on('click', function() {
             var query = $('#plan-search-input').val().trim();
-            if (query.length >= 2) {
-                searchPlans(query);
-            }
+            searchPlans(query);
         });
 
         // Close dropdown on click outside
@@ -231,6 +305,60 @@
                 }
 
                 $results.show();
+            }
+        });
+    }
+
+    function initPlanBrowse() {
+        $('#plan-browse-modal').on('show.bs.modal', function() {
+            loadPlanBrowse(1);
+        });
+    }
+
+    function loadPlanBrowse(page) {
+        var productId = $('#filter-product').val();
+        var params = { page: page };
+        if (productId) {
+            params.product = productId;
+        }
+
+        $.ajax({
+            url: '/tcms_test_browser/plans/api/browse/',
+            method: 'GET',
+            data: params,
+            dataType: 'json',
+            success: function(data) {
+                var $tbody = $('#plan-browse-table tbody');
+                $tbody.empty();
+
+                if (data.plans.length === 0) {
+                    $tbody.html('<tr><td colspan="5" class="text-muted text-center">No plans found</td></tr>');
+                } else {
+                    data.plans.forEach(function(p) {
+                        var statusLabel = p.is_active ?
+                            '<span class="label label-success">Active</span>' :
+                            '<span class="label label-danger">Inactive</span>';
+                        $tbody.append(
+                            '<tr>' +
+                                '<td>TP-' + p.id + '</td>' +
+                                '<td>' + escapeHtml(p.name) + '</td>' +
+                                '<td>' + escapeHtml(p.product || '') + '</td>' +
+                                '<td>' + statusLabel + '</td>' +
+                                '<td><button class="btn btn-xs btn-primary btn-plan-select" data-id="' + p.id + '" data-name="' + escapeHtml(p.name) + '">Select</button></td>' +
+                            '</tr>'
+                        );
+                    });
+
+                    $tbody.find('.btn-plan-select').on('click', function() {
+                        var planId = $(this).data('id');
+                        var planName = $(this).data('name');
+                        $('#plan-browse-modal').modal('hide');
+                        $('#plan-search-input').val('TP-' + planId + ': ' + planName);
+                        loadPlanDrillDown(planId);
+                    });
+                }
+
+                renderBrowsePagination('#plan-browse-pagination', data.page, data.total_pages, loadPlanBrowse);
             }
         });
     }
@@ -344,23 +472,25 @@
     function initCaseSearch() {
         var searchTimeout;
 
+        // Load all cases by default when Case Drill-Down tab is first shown
+        $('a[href="#tab-case-drilldown"]').on('shown.bs.tab', function() {
+            if (!$('#case-search-results').data('loaded')) {
+                searchCases('');
+                $('#case-search-results').data('loaded', true);
+            }
+        });
+
         $('#case-search-input').on('input', function() {
             clearTimeout(searchTimeout);
             var query = $(this).val().trim();
-            if (query.length >= 2) {
-                searchTimeout = setTimeout(function() {
-                    searchCases(query);
-                }, 300);
-            } else {
-                $('#case-search-results').hide();
-            }
+            searchTimeout = setTimeout(function() {
+                searchCases(query);
+            }, 300);
         });
 
         $('#btn-case-search').on('click', function() {
             var query = $('#case-search-input').val().trim();
-            if (query.length >= 2) {
-                searchCases(query);
-            }
+            searchCases(query);
         });
 
         $(document).on('click', function(e) {
@@ -403,6 +533,59 @@
                 }
 
                 $results.show();
+            }
+        });
+    }
+
+    function initCaseBrowse() {
+        $('#case-browse-modal').on('show.bs.modal', function() {
+            loadCaseBrowse(1);
+        });
+    }
+
+    function loadCaseBrowse(page) {
+        var productId = $('#filter-product').val();
+        var params = { page: page };
+        if (productId) {
+            params.product = productId;
+        }
+
+        $.ajax({
+            url: '/tcms_test_browser/api/browse/',
+            method: 'GET',
+            data: params,
+            dataType: 'json',
+            success: function(data) {
+                var $tbody = $('#case-browse-table tbody');
+                $tbody.empty();
+
+                if (data.testcases.length === 0) {
+                    $tbody.html('<tr><td colspan="5" class="text-muted text-center">No cases found</td></tr>');
+                } else {
+                    data.testcases.forEach(function(tc) {
+                        var statusLabel = tc.case_status ?
+                            '<span class="label label-default">' + escapeHtml(tc.case_status) + '</span>' : '';
+                        $tbody.append(
+                            '<tr>' +
+                                '<td>TC-' + tc.id + '</td>' +
+                                '<td>' + escapeHtml(tc.summary) + '</td>' +
+                                '<td>' + escapeHtml(tc.product || '') + '</td>' +
+                                '<td>' + statusLabel + '</td>' +
+                                '<td><button class="btn btn-xs btn-primary btn-case-select" data-id="' + tc.id + '" data-summary="' + escapeHtml(tc.summary) + '">Select</button></td>' +
+                            '</tr>'
+                        );
+                    });
+
+                    $tbody.find('.btn-case-select').on('click', function() {
+                        var caseId = $(this).data('id');
+                        var caseSummary = $(this).data('summary');
+                        $('#case-browse-modal').modal('hide');
+                        $('#case-search-input').val('TC-' + caseId + ': ' + caseSummary);
+                        loadCaseDrillDown(caseId);
+                    });
+                }
+
+                renderBrowsePagination('#case-browse-pagination', data.page, data.total_pages, loadCaseBrowse);
             }
         });
     }
@@ -491,6 +674,20 @@
     // ==========================================
 
     function initDrillDownExports() {
+        // Dashboard export
+        $('.btn-dash-export').on('click', function(e) {
+            e.preventDefault();
+            var format = $(this).data('format');
+            var url = DASH_EXPORT_URLS[format];
+            if (!url) return;
+            var productId = $('#filter-product').val();
+            if (productId) {
+                url += '?product=' + encodeURIComponent(productId);
+            }
+            window.location.href = url;
+        });
+
+        // Plan drill-down export
         $('.btn-plan-dd-export').on('click', function(e) {
             e.preventDefault();
             if (!currentPlanDDId) return;
@@ -511,8 +708,131 @@
     }
 
     // ==========================================
+    // Chart Click-to-Filter Modal
+    // ==========================================
+
+    function openChartFilterModal(filterType, filterValue) {
+        $('#chart-filter-modal-title').text('Executions \u2014 Status: ' + filterValue);
+        $('#chart-filter-loading').show();
+        $('#chart-filter-table').hide();
+        $('#chart-filter-empty').hide();
+        $('#chart-filter-pagination').empty();
+        $('#chart-filter-modal').modal('show');
+        loadChartFilterResults(filterType, filterValue, 1);
+    }
+
+    function loadChartFilterResults(filterType, filterValue, page) {
+        var params = { page: page, page_size: 25 };
+        params[filterType] = filterValue;
+
+        var productId = $('#filter-product').val();
+        if (productId) {
+            params.product = productId;
+        }
+
+        $.ajax({
+            url: '/tcms_test_browser/api/executions/browse/',
+            method: 'GET',
+            data: params,
+            dataType: 'json',
+            success: function(data) {
+                $('#chart-filter-loading').hide();
+                var $thead = $('#chart-filter-thead');
+                var $tbody = $('#chart-filter-tbody');
+                $thead.empty();
+                $tbody.empty();
+
+                if (data.executions.length === 0) {
+                    $('#chart-filter-empty').show();
+                    return;
+                }
+
+                $('#chart-filter-table').show();
+                $thead.html('<th>ID</th><th>Test Case</th><th>Test Run</th><th>Status</th>');
+
+                data.executions.forEach(function(e) {
+                    $tbody.append(
+                        '<tr>' +
+                            '<td>' + e.id + '</td>' +
+                            '<td>' + escapeHtml(e.case_summary || '') + '</td>' +
+                            '<td>' + escapeHtml(e.run_summary || '') + '</td>' +
+                            '<td>' + escapeHtml(e.status || '') + '</td>' +
+                        '</tr>'
+                    );
+                });
+
+                renderBrowsePagination('#chart-filter-pagination', data.page, data.total_pages, function(pg) {
+                    loadChartFilterResults(filterType, filterValue, pg);
+                });
+            },
+            error: function() {
+                $('#chart-filter-loading').hide();
+                $('#chart-filter-empty').text('Error loading results').show();
+            }
+        });
+    }
+
+    // ==========================================
     // Utilities
     // ==========================================
+
+    function renderBrowsePagination(selector, currentPage, totalPages, loadFn) {
+        var $nav = $(selector);
+        $nav.empty();
+
+        if (totalPages <= 1) return;
+
+        var html = '<ul class="pagination pagination-sm" style="margin: 5px 0;">';
+
+        // Previous
+        if (currentPage > 1) {
+            html += '<li><a href="#" data-page="' + (currentPage - 1) + '">&laquo;</a></li>';
+        } else {
+            html += '<li class="disabled"><span>&laquo;</span></li>';
+        }
+
+        // Page numbers (show max 7 pages with ellipsis)
+        var startPage = Math.max(1, currentPage - 3);
+        var endPage = Math.min(totalPages, currentPage + 3);
+
+        if (startPage > 1) {
+            html += '<li><a href="#" data-page="1">1</a></li>';
+            if (startPage > 2) {
+                html += '<li class="disabled"><span>...</span></li>';
+            }
+        }
+
+        for (var i = startPage; i <= endPage; i++) {
+            if (i === currentPage) {
+                html += '<li class="active"><span>' + i + '</span></li>';
+            } else {
+                html += '<li><a href="#" data-page="' + i + '">' + i + '</a></li>';
+            }
+        }
+
+        if (endPage < totalPages) {
+            if (endPage < totalPages - 1) {
+                html += '<li class="disabled"><span>...</span></li>';
+            }
+            html += '<li><a href="#" data-page="' + totalPages + '">' + totalPages + '</a></li>';
+        }
+
+        // Next
+        if (currentPage < totalPages) {
+            html += '<li><a href="#" data-page="' + (currentPage + 1) + '">&raquo;</a></li>';
+        } else {
+            html += '<li class="disabled"><span>&raquo;</span></li>';
+        }
+
+        html += '</ul>';
+        $nav.html(html);
+
+        $nav.find('a[data-page]').on('click', function(e) {
+            e.preventDefault();
+            var page = parseInt($(this).data('page'), 10);
+            loadFn(page);
+        });
+    }
 
     function escapeHtml(text) {
         if (!text) return '';
@@ -521,4 +841,251 @@
         return div.innerHTML;
     }
 
-})(jQuery);
+    // ==========================================
+    // Sankey Diagram (Flow Diagram Tab)
+    // ==========================================
+
+    var sankeyLoaded = false;
+
+    $('a[href="#tab-sankey"]').on('shown.bs.tab', function() {
+        if (!sankeyLoaded) {
+            loadSankeyData();
+            sankeyLoaded = true;
+        }
+    });
+
+    // Re-load when product filter changes
+    $('#filter-product').on('change', function() {
+        sankeyLoaded = false;
+        // If sankey tab is active, reload
+        if ($('#tab-sankey').hasClass('active')) {
+            loadSankeyData();
+            sankeyLoaded = true;
+        }
+    });
+
+    function loadSankeyData() {
+        var productId = $('#filter-product').val();
+        var params = {};
+        if (productId) params.product = productId;
+
+        $('#sankey-loading').show();
+        $('#sankey-empty').hide();
+        $('#sankey-chart').empty();
+
+        $.ajax({
+            url: '/tcms_test_browser/consolidated/api/sankey/',
+            method: 'GET',
+            data: params,
+            dataType: 'json',
+            success: function(data) {
+                $('#sankey-loading').hide();
+                if (!data.nodes || data.nodes.length === 0 || !data.links || data.links.length === 0) {
+                    $('#sankey-empty').show();
+                    return;
+                }
+                renderSankey(data);
+            },
+            error: function() {
+                $('#sankey-loading').hide();
+                $('#sankey-empty').show();
+            }
+        });
+    }
+
+    function renderSankey(data) {
+        var container = document.getElementById('sankey-chart');
+        var width = container.clientWidth || 1000;
+        var nodeWidth = 20;
+        var nodePadding = 8;
+
+        // Count nodes by type for height calculation
+        var productCount = 0, planCount = 0, runCount = 0;
+        data.nodes.forEach(function(n) {
+            if (n.type === 'product') productCount++;
+            else if (n.type === 'plan') planCount++;
+            else if (n.type === 'run') runCount++;
+        });
+        var maxCol = Math.max(productCount, planCount, runCount);
+        var height = Math.max(400, maxCol * 28 + 60);
+
+        // Assign columns: products=0, plans=1, runs=2
+        var columns = [[], [], []];
+        data.nodes.forEach(function(n, i) {
+            if (n.type === 'product') columns[0].push(i);
+            else if (n.type === 'plan') columns[1].push(i);
+            else columns[2].push(i);
+        });
+
+        // Calculate node positions
+        var colX = [40, width / 2 - nodeWidth / 2, width - nodeWidth - 40];
+        var nodePositions = [];
+
+        for (var col = 0; col < 3; col++) {
+            var nodesInCol = columns[col];
+            var totalH = nodesInCol.length * 20 + (nodesInCol.length - 1) * nodePadding;
+            var startY = Math.max(20, (height - totalH) / 2);
+
+            // Calculate node heights based on their total link values
+            var nodeValues = {};
+            data.links.forEach(function(l) {
+                nodeValues[l.source] = (nodeValues[l.source] || 0) + l.value;
+                nodeValues[l.target] = (nodeValues[l.target] || 0) + l.value;
+            });
+
+            var maxValue = 1;
+            nodesInCol.forEach(function(ni) {
+                maxValue = Math.max(maxValue, nodeValues[ni] || 1);
+            });
+
+            var availableH = height - 40;
+            var y = 20;
+            nodesInCol.forEach(function(ni) {
+                var val = nodeValues[ni] || 1;
+                var h = Math.max(12, (val / maxValue) * (availableH / nodesInCol.length * 0.8));
+                h = Math.min(h, availableH / nodesInCol.length - 2);
+                nodePositions[ni] = {
+                    x: colX[col],
+                    y: y,
+                    width: nodeWidth,
+                    height: h,
+                    col: col
+                };
+                y += h + nodePadding;
+            });
+        }
+
+        // Colors
+        var typeColors = {
+            product: '#0088ce',
+            plan: '#3f9c35',
+            run: '#ec7a08'
+        };
+
+        // Create SVG
+        var svg = d3.select('#sankey-chart')
+            .append('svg')
+            .attr('width', width)
+            .attr('height', height);
+
+        // Draw links
+        var linkGroup = svg.append('g');
+
+        // Track source/target port offsets
+        var sourceOffsets = {};
+        var targetOffsets = {};
+
+        data.links.forEach(function(link) {
+            var s = nodePositions[link.source];
+            var t = nodePositions[link.target];
+            if (!s || !t) return;
+
+            var sOff = sourceOffsets[link.source] || 0;
+            var tOff = targetOffsets[link.target] || 0;
+
+            // Calculate link thickness proportional to value (min 2px)
+            var totalSourceVal = 0;
+            data.links.forEach(function(l2) {
+                if (l2.source === link.source) totalSourceVal += l2.value;
+            });
+            var linkH = Math.max(2, (link.value / Math.max(totalSourceVal, 1)) * s.height * 0.9);
+
+            var x0 = s.x + s.width;
+            var y0 = s.y + sOff + linkH / 2;
+            var x1 = t.x;
+            var y1 = t.y + tOff + linkH / 2;
+
+            var midX = (x0 + x1) / 2;
+
+            var path = 'M' + x0 + ',' + y0 +
+                       'C' + midX + ',' + y0 +
+                       ' ' + midX + ',' + y1 +
+                       ' ' + x1 + ',' + y1;
+
+            var sourceNode = data.nodes[link.source];
+            var color = typeColors[sourceNode.type] || '#999';
+
+            linkGroup.append('path')
+                .attr('d', path)
+                .attr('fill', 'none')
+                .attr('stroke', color)
+                .attr('stroke-opacity', 0.3)
+                .attr('stroke-width', linkH)
+                .on('mouseover', function() {
+                    d3.select(this).attr('stroke-opacity', 0.6);
+                })
+                .on('mouseout', function() {
+                    d3.select(this).attr('stroke-opacity', 0.3);
+                })
+                .append('title')
+                .text(data.nodes[link.source].name + ' → ' + data.nodes[link.target].name + ' (' + link.value + ')');
+
+            sourceOffsets[link.source] = sOff + linkH;
+            targetOffsets[link.target] = tOff + linkH;
+        });
+
+        // Draw nodes
+        var nodeGroup = svg.append('g');
+
+        data.nodes.forEach(function(node, i) {
+            var pos = nodePositions[i];
+            if (!pos) return;
+
+            var color = typeColors[node.type] || '#999';
+
+            nodeGroup.append('rect')
+                .attr('x', pos.x)
+                .attr('y', pos.y)
+                .attr('width', pos.width)
+                .attr('height', pos.height)
+                .attr('fill', color)
+                .attr('rx', 2)
+                .append('title')
+                .text(node.name);
+
+            // Label
+            var labelX, anchor;
+            if (pos.col === 0) {
+                labelX = pos.x - 5;
+                anchor = 'end';
+            } else if (pos.col === 2) {
+                labelX = pos.x + pos.width + 5;
+                anchor = 'start';
+            } else {
+                labelX = pos.x + pos.width + 5;
+                anchor = 'start';
+            }
+
+            // Truncate label to fit
+            var label = node.name;
+            var maxLen = pos.col === 1 ? 40 : 30;
+            if (label.length > maxLen) label = label.substring(0, maxLen) + '...';
+
+            nodeGroup.append('text')
+                .attr('x', labelX)
+                .attr('y', pos.y + pos.height / 2)
+                .attr('dy', '0.35em')
+                .attr('text-anchor', anchor)
+                .attr('font-size', '10px')
+                .attr('fill', '#333')
+                .text(label)
+                .append('title')
+                .text(node.name);
+        });
+
+        // Column headers
+        var headers = ['Products', 'Test Plans', 'Test Runs'];
+        var headerColors = ['#0088ce', '#3f9c35', '#ec7a08'];
+        for (var h = 0; h < 3; h++) {
+            svg.append('text')
+                .attr('x', colX[h] + nodeWidth / 2)
+                .attr('y', 12)
+                .attr('text-anchor', 'middle')
+                .attr('font-size', '12px')
+                .attr('font-weight', 'bold')
+                .attr('fill', headerColors[h])
+                .text(headers[h]);
+        }
+    }
+
+})($);
