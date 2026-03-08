@@ -1,6 +1,6 @@
 [project]
 name = "tcms-test-browser"
-version = "1.1.0"
+version = "1.1.1"
 description = "Test Case, Test Plan, and Test Run Browser plugin for Kiwi TCMS with tree navigation, statistics dashboards, and report exports"
 readme = "README.md"
 license = "MIT"

@@ -821,6 +821,7 @@ class LandingPageView(TemplateView):
         return context
 
 
+@method_decorator(login_required, name="dispatch")
 class TestCaseBrowserView(TemplateView):
     """
     Test Case Browser with tree navigation.
