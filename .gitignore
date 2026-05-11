@@ -4,3 +4,14 @@ __pycache__/
 build/
 dist/
 .eggs/
+# Local dev tooling — not part of the shipped package
+.python-version
+.venv/
+venv/
+node_modules/
+package.json
+package-lock.json
+uv.lock
+# One-off seed scripts used during local development
+create_test_data.py
+create_remaining_runs.py

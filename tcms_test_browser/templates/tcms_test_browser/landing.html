@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% load i18n static %}
+
+{% block title %}{% trans "Test Browser" %}{% endblock %}
+
+{% block contents %}
+<link rel="stylesheet" href="{% static 'tcms_test_browser/css/browser.css' %}">
+
+<div class="container-fluid test-browser-landing">
+
+    <header class="test-browser-landing__header">
+        <p class="test-browser-landing__eyebrow">{% trans "Test Browser" %}</p>
+        <h1 class="test-browser-landing__title">{% trans "Browse the lab" %}</h1>
+        <p class="test-browser-landing__subtitle">
+            {% trans "Cases, plans, runs, and execution results — pick a starting point." %}
+        </p>
+    </header>
+
+    <div class="row">
+        <div class="col-sm-6 col-md-3">
+            <a href="{% url 'testcase-browser' %}" class="landing-card">
+                <div class="panel">
+                    <div class="panel-body">
+                        <span class="pficon pficon-catalog landing-card__icon" aria-hidden="true"></span>
+                        <h3 class="landing-card__title">{% trans "Test Cases" %}</h3>
+                        <p class="landing-card__hint">
+                            {% trans "Browse test cases by product and category with tree navigation." %}
+                        </p>
+                        <span class="landing-card__count">{{ total_cases }}</span>
+                        <span class="landing-card__count-label">{% trans "total" %}</span>
+                    </div>
+                </div>
+            </a>
+        </div>
+
+        <div class="col-sm-6 col-md-3">
+            <a href="{% url 'testplan-browser' %}" class="landing-card">
+                <div class="panel">
+                    <div class="panel-body">
+                        <span class="pficon pficon-topology landing-card__icon" aria-hidden="true"></span>
+                        <h3 class="landing-card__title">{% trans "Test Plans" %}</h3>
+                        <p class="landing-card__hint">
+                            {% trans "Browse test plans by product with type and status overview." %}
+                        </p>
+                        <span class="landing-card__count">{{ total_plans }}</span>
+                        <span class="landing-card__count-label">{% trans "total" %}</span>
+                    </div>
+                </div>
+            </a>
+        </div>
+
+        <div class="col-sm-6 col-md-3">
+            <a href="{% url 'testrun-browser' %}" class="landing-card">
+                <div class="panel">
+                    <div class="panel-body">
+                        <span class="pficon pficon-running landing-card__icon" aria-hidden="true"></span>
+                        <h3 class="landing-card__title">{% trans "Test Runs" %}</h3>
+                        <p class="landing-card__hint">
+                            {% trans "Browse test runs by product and plan with execution status." %}
+                        </p>
+                        <span class="landing-card__count">{{ total_runs }}</span>
+                        <span class="landing-card__count-label">{% trans "total" %}</span>
+                    </div>
+                </div>
+            </a>
+        </div>
+
+        <div class="col-sm-6 col-md-3">
+            <a href="{% url 'consolidated-browser' %}" class="landing-card">
+                <div class="panel">
+                    <div class="panel-body">
+                        <span class="pficon pficon-trend-up landing-card__icon" aria-hidden="true"></span>
+                        <h3 class="landing-card__title">{% trans "Consolidated" %}</h3>
+                        <p class="landing-card__hint">
+                            {% trans "Dashboard view with drill-down into plans and cases." %}
+                        </p>
+                        <span class="landing-card__count">{{ total_executions }}</span>
+                        <span class="landing-card__count-label">{% trans "executions" %}</span>
+                    </div>
+                </div>
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

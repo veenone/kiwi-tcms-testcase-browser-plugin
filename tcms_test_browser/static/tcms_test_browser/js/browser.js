@@ -8,6 +8,7 @@
 
     var currentTestCaseId = null;
     var loadedCategories = {};
+    var checkedIds = {};
 
     // Initialize on document ready
     $(document).ready(function() {
@@ -15,6 +16,7 @@
         initSearch();
         initFilterProduct();
         initStatsPanel();
+        initSelectionControls();
         loadStatistics();
     });
 
@@ -136,8 +138,10 @@
                 } else {
                     data.testcases.forEach(function(tc) {
                         var statusClass = getStatusClass(tc.case_status);
+                        var isChecked = checkedIds[tc.id] ? ' checked' : '';
                         var $tcItem = $(
                             '<div class="list-group-item tree-item testcase-item" data-type="testcase" data-id="' + tc.id + '">' +
+                                '<input type="checkbox" class="tree-checkbox" data-id="' + tc.id + '" title="Select for export"' + isChecked + '>&nbsp;' +
                                 '<span class="pficon pficon-catalog"></span> ' +
                                 '<span class="tree-label">' + escapeHtml(tc.summary) + '</span>' +
                                 '<span class="label ' + statusClass + '" style="margin-left: 5px;">' + escapeHtml(tc.case_status || '') + '</span>' +
@@ -213,7 +217,11 @@
         }
 
         if (data.notes) {
-            $('#tc-notes').text(data.notes);
+            var notesHtml = escapeHtml(data.notes)
+                .replace(/\n/g, '<br>')
+                .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\*(.+?)\*/g, '<em>$1</em>');
+            $('#tc-notes').html(notesHtml);
             $('#tc-notes-section').show();
         } else {
             $('#tc-notes-section').hide();
@@ -253,14 +261,19 @@
             $('#tc-tags').html('<em class="text-muted">No tags</em>');
         }
 
+        var $plansBody = $('#tc-plans tbody');
+        $plansBody.empty();
         if (data.plans.length > 0) {
-            $('#tc-plans').html(data.plans.map(function(p) {
-                return '<a href="/plan/' + p.id + '/" class="btn btn-xs btn-default" style="margin-right: 5px;">' +
-                    '<span class="pficon pficon-catalog"></span> ' + escapeHtml(p.name) +
-                '</a>';
-            }).join(''));
+            data.plans.forEach(function(p) {
+                $plansBody.append(
+                    '<tr>' +
+                        '<td><a href="/plan/' + p.id + '/" target="_blank">TP-' + p.id + '</a></td>' +
+                        '<td>' + escapeHtml(p.name) + '</td>' +
+                    '</tr>'
+                );
+            });
         } else {
-            $('#tc-plans').html('<em class="text-muted">Not in any test plan</em>');
+            $plansBody.html('<tr><td colspan="2" class="text-muted text-center">Not in any test plan</td></tr>');
         }
     }
 
@@ -413,6 +426,48 @@
         return div.innerHTML;
     }
 
+    /**
+     * Initialize selection controls (checkboxes + select all)
+     */
+    function initSelectionControls() {
+        // Checkbox click — stop propagation so detail doesn't load
+        $('#tree-view').on('click', '.tree-checkbox', function(e) {
+            e.stopPropagation();
+            var id = $(this).data('id');
+            if ($(this).is(':checked')) {
+                checkedIds[id] = true;
+            } else {
+                delete checkedIds[id];
+            }
+            updateSelectionCount();
+        });
+
+        // Select All toggle
+        $('#select-all-tree').on('change', function() {
+            var isChecked = $(this).is(':checked');
+            $('#tree-view .tree-checkbox:visible').each(function() {
+                $(this).prop('checked', isChecked);
+                var id = $(this).data('id');
+                if (isChecked) {
+                    checkedIds[id] = true;
+                } else {
+                    delete checkedIds[id];
+                }
+            });
+            updateSelectionCount();
+        });
+    }
+
+    function updateSelectionCount() {
+        var count = Object.keys(checkedIds).length;
+        var $badge = $('#selection-count');
+        if (count > 0) {
+            $badge.text(count).show();
+        } else {
+            $badge.hide();
+        }
+    }
+
     // ==========================================
     // Statistics Dashboard
     // ==========================================
@@ -453,9 +508,14 @@
             var url = EXPORT_URLS[format];
             if (!url) return;
 
-            var productId = $('#filter-product').val();
-            if (productId) {
-                url += '?product=' + encodeURIComponent(productId);
+            var selectedIds = Object.keys(checkedIds);
+            if (selectedIds.length > 0) {
+                url += '?ids=' + selectedIds.join(',');
+            } else {
+                var productId = $('#filter-product').val();
+                if (productId) {
+                    url += '?product=' + encodeURIComponent(productId);
+                }
             }
             window.location.href = url;
         });
@@ -488,10 +548,10 @@
                 }
 
                 renderDonutChart('#chart-status', data.by_status,
-                    ['#3f9c35', '#39a5dc', '#ec7a08', '#cc0000', '#703fec']);
+                    ['#3f9c35', '#39a5dc', '#ec7a08', '#cc0000', '#703fec'], 'status');
                 renderDonutChart('#chart-priority', data.by_priority,
-                    ['#cc0000', '#ec7a08', '#0088ce', '#3f9c35', '#d1d1d1']);
-                renderBarChart('#chart-product', data.by_product);
+                    ['#cc0000', '#ec7a08', '#0088ce', '#3f9c35', '#d1d1d1'], 'priority');
+                renderBarChart('#chart-product', data.by_product, 'product');
             },
             error: function() {
                 $('#stat-total-count').text('--');
@@ -502,7 +562,7 @@
     /**
      * Render a donut chart into the given selector
      */
-    function renderDonutChart(selector, data, colors) {
+    function renderDonutChart(selector, data, colors, filterType) {
         if (!data || data.length === 0) {
             $(selector).html('<div class="text-muted text-center small">No data</div>');
             return;
@@ -517,7 +577,10 @@
             bindto: selector,
             data: {
                 columns: columns,
-                type: 'donut'
+                type: 'donut',
+                onclick: function(d) {
+                    if (filterType) openChartFilterModal(filterType, d.name);
+                }
             },
             donut: {
                 width: 12,
@@ -537,8 +600,9 @@
                 position: 'right'
             },
             size: {
-                height: 180
-            }
+                height: 220
+            },
+            padding: { top: 10, right: 10, bottom: 10, left: 10 }
         });
     }
 
@@ -575,7 +639,7 @@
     /**
      * Render a bar chart into the given selector
      */
-    function renderBarChart(selector, data) {
+    function renderBarChart(selector, data, filterType) {
         if (!data || data.length === 0) {
             $(selector).html('<div class="text-muted text-center small">No data</div>');
             return;
@@ -589,20 +653,23 @@
             counts.push(data[i].count);
         }
 
+        var chartHeight = Math.max(180, categories.length * 32 + 40);
+
         c3.generate({
             bindto: selector,
             data: {
                 columns: [counts],
-                type: 'bar'
+                type: 'bar',
+                onclick: function(d) {
+                    if (filterType) openChartFilterModal(filterType, categories[d.index]);
+                }
             },
             axis: {
+                rotated: true,
                 x: {
                     categories: categories,
                     type: 'category',
-                    tick: {
-                        multiline: false,
-                        rotate: 30
-                    }
+                    tick: { multiline: false }
                 },
                 y: {
                     tick: {
@@ -623,9 +690,141 @@
                 y: { show: false }
             },
             size: {
-                height: 180
+                height: chartHeight
             }
         });
     }
 
-})(jQuery);
+    // ==========================================
+    // Chart Click-to-Filter Modal
+    // ==========================================
+
+    function openChartFilterModal(filterType, filterValue) {
+        var titleMap = {
+            'status': 'Test Cases \u2014 Status: ',
+            'priority': 'Test Cases \u2014 Priority: ',
+            'product': 'Test Cases \u2014 Product: '
+        };
+        $('#chart-filter-modal-title').text((titleMap[filterType] || 'Filtered Results \u2014 ') + filterValue);
+        $('#chart-filter-loading').show();
+        $('#chart-filter-table').hide();
+        $('#chart-filter-empty').hide();
+        $('#chart-filter-pagination').empty();
+        $('#chart-filter-modal').modal('show');
+        loadChartFilterResults(filterType, filterValue, 1);
+    }
+
+    function loadChartFilterResults(filterType, filterValue, page) {
+        var params = { page: page, page_size: 25 };
+
+        if (filterType === 'status') {
+            params.status = filterValue;
+        } else if (filterType === 'priority') {
+            params.priority = filterValue;
+        } else if (filterType === 'product') {
+            params.product_name = filterValue;
+        }
+
+        var productId = $('#filter-product').val();
+        if (productId) {
+            params.product = productId;
+        }
+
+        $.ajax({
+            url: '/tcms_test_browser/api/browse/',
+            method: 'GET',
+            data: params,
+            dataType: 'json',
+            success: function(data) {
+                $('#chart-filter-loading').hide();
+                var $thead = $('#chart-filter-thead');
+                var $tbody = $('#chart-filter-tbody');
+                $thead.empty();
+                $tbody.empty();
+
+                if (data.testcases.length === 0) {
+                    $('#chart-filter-empty').show();
+                    return;
+                }
+
+                $('#chart-filter-table').show();
+                $thead.html('<th>ID</th><th>Summary</th><th>Product</th><th>Status</th>');
+
+                data.testcases.forEach(function(tc) {
+                    $tbody.append(
+                        '<tr>' +
+                            '<td><a href="/case/' + tc.id + '/" target="_blank">TC-' + tc.id + '</a></td>' +
+                            '<td>' + escapeHtml(tc.summary) + '</td>' +
+                            '<td>' + escapeHtml(tc.product || '') + '</td>' +
+                            '<td>' + escapeHtml(tc.case_status || '') + '</td>' +
+                        '</tr>'
+                    );
+                });
+
+                renderBrowsePagination('#chart-filter-pagination', data.page, data.total_pages, function(p) {
+                    loadChartFilterResults(filterType, filterValue, p);
+                });
+            },
+            error: function() {
+                $('#chart-filter-loading').hide();
+                $('#chart-filter-empty').text('Error loading results').show();
+            }
+        });
+    }
+
+    function renderBrowsePagination(selector, currentPage, totalPages, loadFn) {
+        var $nav = $(selector);
+        $nav.empty();
+
+        if (totalPages <= 1) return;
+
+        var html = '<ul class="pagination pagination-sm" style="margin: 5px 0;">';
+
+        if (currentPage > 1) {
+            html += '<li><a href="#" data-page="' + (currentPage - 1) + '">&laquo;</a></li>';
+        } else {
+            html += '<li class="disabled"><span>&laquo;</span></li>';
+        }
+
+        var startPage = Math.max(1, currentPage - 3);
+        var endPage = Math.min(totalPages, currentPage + 3);
+
+        if (startPage > 1) {
+            html += '<li><a href="#" data-page="1">1</a></li>';
+            if (startPage > 2) {
+                html += '<li class="disabled"><span>...</span></li>';
+            }
+        }
+
+        for (var i = startPage; i <= endPage; i++) {
+            if (i === currentPage) {
+                html += '<li class="active"><span>' + i + '</span></li>';
+            } else {
+                html += '<li><a href="#" data-page="' + i + '">' + i + '</a></li>';
+            }
+        }
+
+        if (endPage < totalPages) {
+            if (endPage < totalPages - 1) {
+                html += '<li class="disabled"><span>...</span></li>';
+            }
+            html += '<li><a href="#" data-page="' + totalPages + '">' + totalPages + '</a></li>';
+        }
+
+        if (currentPage < totalPages) {
+            html += '<li><a href="#" data-page="' + (currentPage + 1) + '">&raquo;</a></li>';
+        } else {
+            html += '<li class="disabled"><span>&raquo;</span></li>';
+        }
+
+        html += '</ul>';
+        $nav.html(html);
+
+        $nav.find('a[data-page]').on('click', function(e) {
+            e.preventDefault();
+            var page = parseInt($(this).data('page'), 10);
+            loadFn(page);
+        });
+    }
+
+})($);
