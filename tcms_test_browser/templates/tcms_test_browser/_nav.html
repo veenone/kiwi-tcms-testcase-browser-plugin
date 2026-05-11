@@ -1,0 +1,23 @@
+{% load i18n %}
+<ul class="nav nav-tabs" id="browser-nav">
+    <li{% if active_nav == 'cases' %} class="active"{% endif %}>
+        <a href="{% url 'testcase-browser' %}">
+            <span class="pficon pficon-catalog" aria-hidden="true"></span> {% trans "Test Cases" %}
+        </a>
+    </li>
+    <li{% if active_nav == 'plans' %} class="active"{% endif %}>
+        <a href="{% url 'testplan-browser' %}">
+            <span class="pficon pficon-topology" aria-hidden="true"></span> {% trans "Test Plans" %}
+        </a>
+    </li>
+    <li{% if active_nav == 'runs' %} class="active"{% endif %}>
+        <a href="{% url 'testrun-browser' %}">
+            <span class="pficon pficon-running" aria-hidden="true"></span> {% trans "Test Runs" %}
+        </a>
+    </li>
+    <li{% if active_nav == 'consolidated' %} class="active"{% endif %}>
+        <a href="{% url 'consolidated-browser' %}">
+            <span class="pficon pficon-trend-up" aria-hidden="true"></span> {% trans "Consolidated" %}
+        </a>
+    </li>
+</ul>
